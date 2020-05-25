@@ -1,3 +1,6 @@
+# @author Kang chan yeong(rrrfffrrr@hanyang.ac.kr)
+# @Create 05/22/2020
+# @Last_update 05/23/2020
 CC		:= gcc
 CFLAG	:= -g -Wall
 TARGET	:= smsh
