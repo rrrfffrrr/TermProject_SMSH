@@ -3,7 +3,9 @@
 */
 #ifndef __SMSC_COMMAND_H
 #define __SMSC_COMMAND_H
+#include <stdbool.h>
 
-void ParseCommand(char*);
+bool CheckCommandSyntax(char*);
+void RunCommand(char*);
 
 #endif

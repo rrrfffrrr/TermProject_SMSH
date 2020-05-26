@@ -7,7 +7,6 @@
 
 #include "type.h"
 #include "history.h"
-#include "command.h"
 #include "errstr.h"
 
 // string
@@ -31,20 +30,21 @@ int main() {
 		{ // perform history
 			size_t hid;
 			if (ParseCommandToAddHistory(command, MAX_COMMAND_LENGTH, &hid) == false) {
-				commandSize = snprintf(command, MAX_COMMAND_LENGTH, ERREVENT_NOFOUND, hid);
+				commandSize = snprintf(command, MAX_COMMAND_LENGTH, ERREVENT_NOTFOUND, hid);
 				write(STDOUT_FILENO, command, commandSize);
-				goto ENDLOOP;
+				goto ENDOFLOOP;
 			}
 			AddHistory(command);
 		}
 		if (strlen(command) < 1) // no command
-			goto ENDLOOP;
+			goto ENDOFLOOP;
 		
-		{ // parse command
-			
+		if (CheckCommandSyntax(command)) {
+			pid_t pid = RunSubshellInstance(command, commandSize);
+			waitpid(pid, NULL, 0);
 		}
 		
-ENDLOOP:;
+ENDOFLOOP:;
 	}
 	return 0;
 }

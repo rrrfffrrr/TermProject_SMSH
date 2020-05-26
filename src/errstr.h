@@ -6,7 +6,10 @@
 
 // error string
 /// syntax error
-#define ERRSTRSYN_BACKGROUND "bash: syntax error near unexpected token `%s'\n"
-#define ERREVENT_NOFOUND "bash: !%lu: event not found.\n"
+#define ERREVENT_NOTFOUND "bash: !%lu: event not found.\n"
+
+/// command error
+#define ERRCMD_SYNTAX "bash: syntax error near unexpected token `%c'\n"
+#define ERRCMD_NOTFOUND "Command '%s' not found."
 
 #endif
