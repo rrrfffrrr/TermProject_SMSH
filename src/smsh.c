@@ -4,13 +4,16 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include "type.h"
 #include "history.h"
 #include "errstr.h"
+#include "command.h"
+#include "subshell.h"
 
 // string
-const char const PrefixFormat[256] = "\033[1;32m%s\033[0m:\033[1;94m%s\033[0m$ ";
+const char PrefixFormat[256] = "\033[1;32m%s\033[0m:\033[1;94m%s\033[0m$ ";
 char UserName[MAX_USERNAME_LENGTH] = "SMSH";
 
 int main() {
@@ -40,7 +43,7 @@ int main() {
 			goto ENDOFLOOP;
 		
 		if (CheckCommandSyntax(command)) {
-			pid_t pid = RunSubshellInstance(command, commandSize);
+			pid_t pid = RunSubshellInstance(command);
 			waitpid(pid, NULL, 0);
 		}
 		
