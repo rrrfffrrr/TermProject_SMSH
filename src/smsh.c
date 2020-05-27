@@ -2,6 +2,7 @@
 * KANG CHAN YEONG(rrrfffrrr@naver.com)
 */
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -20,11 +21,12 @@ int main() {
 	char command[MAX_COMMAND_LENGTH];
 	int commandSize;
 	char cwd[MAX_CWD_LENGTH];
-	getcwd(cwd, MAX_CWD_LENGTH);
-	getlogin_r(UserName, MAX_USERNAME_LENGTH);
+	chdir(getenv("HOME"));
 	
 	while(true) {
 		{ // get input
+			getcwd(cwd, MAX_CWD_LENGTH);
+			getlogin_r(UserName, MAX_USERNAME_LENGTH);
 			commandSize = snprintf(command, MAX_COMMAND_LENGTH, PrefixFormat, UserName, cwd);
 			write(STDOUT_FILENO, command, commandSize);
 			commandSize = read(STDIN_FILENO, command, MAX_COMMAND_LENGTH);
