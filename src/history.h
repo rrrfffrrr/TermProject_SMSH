@@ -13,7 +13,9 @@ void AddHistory(char*);
 void ShowHistory();
 size_t GetHistoryCount();
 void GetHistory(size_t, char*, size_t);
+
 // Not implemented
+void ChangeHistory(size_t, char*);
 void FindHistory(char*, char*, size_t);
 
 #endif
