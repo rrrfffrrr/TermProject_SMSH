@@ -4,6 +4,7 @@
 #include "errstr.h"
 #include "command.h"
 #include "subshell.h"
+#include "builtin.h"
 #include <stdio.h>
 #include <string.h>
 
