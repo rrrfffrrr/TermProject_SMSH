@@ -5,6 +5,7 @@
 #include "builtin.h"
 #include "string.h"
 #include "history.h"
+#include "redirect.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +18,11 @@ static char BuiltinCommands[][SIZEOFCOMMAND] = {
 	"history",
 	"cd",
 	"pwd",
-	"exit"
+	"exit",
+	"set +o noclobber",
+	"set -o noclobber",
+	"set +C",
+	"set -C",
 };
 
 bool IsBuiltinCommand(char* command) {
@@ -50,6 +55,18 @@ ssize_t RunBuiltinCommand(char* cmd, char** argv) {
 		return 0;
 	} else if (strcmp(cmd, BuiltinCommands[3]) == 0) {
 		exit(0);
+	} else if (strcmp(cmd, BuiltinCommands[4]) == 0) {
+		SetNoclobber(true);
+		return 0;
+	} else if (strcmp(cmd, BuiltinCommands[5]) == 0) {
+		SetNoclobber(false);
+		return 0;
+	} else if (strcmp(cmd, BuiltinCommands[6]) == 0) {
+		SetNoclobber(true);
+		return 0;
+	} else if (strcmp(cmd, BuiltinCommands[7]) == 0) {
+		SetNoclobber(false);
+		return 0;
 	}
 	return -1;
 }
