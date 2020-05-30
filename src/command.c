@@ -5,6 +5,8 @@
 #include "command.h"
 #include "subshell.h"
 #include "builtin.h"
+#include "redirect.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -16,15 +18,6 @@ enum CheckCommandFS {
 	CCFS_Separator,
 	CCFS_SubshellStarter,
 	CCFS_SubshellFinisher
-};
-
-enum CommandFS {
-	CFS_Command,
-	CFS_Argument,
-	CFS_Operator,
-	CFS_Separator,
-	CFS_SubshellCommand,
-	CFS_SubshellOperator
 };
 
 bool CheckCommandSyntax(char* command) {
@@ -144,29 +137,87 @@ bool CheckCommandSyntax(char* command) {
 void RunCommand(char* command) {
 	const char* const cbegin = command;
 	const char* const cend = &command[strlen(command)+1];
-	enum CommandFS fsm = CFS_Separator;
-	size_t subshellWrapCount = 0;
-	size_t quoteCount = 0;
-	size_t isBackground = 0;
-	char* subshellBegin = NULL;
 
-	for(char* cursor = (char*)cbegin;cursor != cend; ++cursor) {
-		switch(fsm) {
-			case CFS_SubshellCommand:
-				switch(*cursor) {
-					case '(': subshellWrapCount++; break;
-					case ')': 
-						if (--subshellWrapCount == 0) {
-							fsm = CFS_SubshellOperator;
-							
-						}
-					default: break;
+	char singleCmd[MAX_COMMAND_LENGTH];
+	char* cmdStart = (char*)cbegin;
+	size_t length;
+
+	int fd[2][2];
+	int nextPipe = 0;
+	int *pipeS, *pipeR;
+
+	for(char* cursor = cmdStart;cursor != cend; ++cursor) {
+		switch(*cursor) {
+			case '|':
+				length = (size_t)(cursor - cmdStart);
+				if (length <= 0) {
+					printf(ERRCMD_SYNTAX, *cursor);
+					return;
+				}
+				memcpy(singleCmd, cmdStart, length);
+				singleCmd[length] = '\0';
+
+				pipeS = fd[nextPipe];
+				nextPipe = (nextPipe + 1) % 2;
+				pipe(pipeS);
+				RunSingleCommand(singleCmd, false, pipeR, pipeS);
+				if (pipeR != NULL) {
+					close(pipeR[0]);
+					close(pipeR[1]);
+				}
+				pipeR = pipeS;
+			break;
+			case '&':
+				length = (size_t)(cursor - cmdStart);
+				if (length <= 0) {
+					printf(ERRCMD_SYNTAX, *cursor);
+					return;
+				}
+				memcpy(singleCmd, cmdStart, length);
+				singleCmd[length] = '\0';
+
+				RunSingleCommand(singleCmd, true, pipeR, NULL);
+				if (pipeR != NULL) {
+					close(pipeR[0]);
+					close(pipeR[1]);
+					pipeR = NULL;
 				}
 			break;
-			default:
-				printf(ERR_UNEXPECTED, *cursor);
-				exit(0);
-			return;
+			case '\0': case ';':
+				length = (size_t)(cursor - cmdStart);
+				if (length > 0) {
+					memcpy(singleCmd, cmdStart, length);
+					singleCmd[length] = '\0';
+					RunSingleCommand(singleCmd, false, pipeR, NULL);
+					if (pipeR != NULL) {
+						close(pipeR[0]);
+						close(pipeR[1]);
+						pipeR = NULL;
+					}
+				} else if (pipeR == NULL) {
+					printf(ERRCMD_SYNTAX, *cursor);
+					return;
+				}
+			break;
+			default: break;
 		}
+	}
+}
+
+void RunSingleCommand(char* command, bool isBackground, int* pipeReceiver, int* pipeSender) {
+	pid_t pid = fork();
+	if (pid < 0) {
+		printf(ERRFORK);
+		return;
+	} else if (pid == 0) {
+		if (pipeReceiver != NULL)
+			PipeReceiver(pipeReceiver)
+		if (pipeSender != NULL)
+			PipeSender(pipeSender);
+
+		
+	} else {
+		if (isBackground == false)
+			waitpid(pid);
 	}
 }
