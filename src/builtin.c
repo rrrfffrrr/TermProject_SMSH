@@ -6,6 +6,8 @@
 #include "string.h"
 #include "history.h"
 #include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define COUNTOFPARAM 16
 #define SIZEOFCOMMAND 32
@@ -36,7 +38,7 @@ ssize_t RunBuiltinCommand(char* cmd, char** argv) {
 		return 0;
 	} else if (strcmp(cmd, BuiltinCommands[1]) == 0) {
 		if (chdir(argv[0]) == -1) {
-			printf(ERRCMD_CD_NODIR, cmd[1]);
+			printf(ERRCMD_CD_NODIR, argv[0]);
 		}
 		return 0;
 	} else if (strcmp(cmd, BuiltinCommands[2]) == 0) {
