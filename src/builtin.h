@@ -7,6 +7,6 @@
 #include <sys/types.h>
 
 bool IsBuiltinCommand(char*);
-ssize_t RunBuiltinCommand(char*);
+ssize_t RunBUiltinCommand(char*, int, char**);
 
 #endif
