@@ -45,7 +45,7 @@ int main() {
 			goto ENDOFLOOP;
 		
 		if (CheckCommandSyntax(command)) {
-			pid_t pid = RunSubshellInstance(command);
+			pid_t pid = RunSubshellInstance(command, false, NULL, NULL, 0);
 			waitpid(pid, NULL, 0);
 		}
 		

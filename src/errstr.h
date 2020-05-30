@@ -5,6 +5,9 @@
 #define __SMSC_ERROR_H
 
 // error string
+#define ERR_UNEXPECTED "Critical: Unexpected syntax near `%c'\n"
+#define ERRFORK	"bash: Cannot fork new process.\n"
+
 /// syntax error
 #define ERREVENT_NOTFOUND "bash: !%lu: event not found.\n"
 
