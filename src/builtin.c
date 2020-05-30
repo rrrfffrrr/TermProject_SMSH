@@ -30,7 +30,7 @@ bool IsBuiltinCommand(char* command) {
 }
 
 // hardcoded cause there's no hash map.
-ssize_t RunBUiltinCommand(char* cmd, char** argv) {
+ssize_t RunBuiltinCommand(char* cmd, char** argv) {
 	if (strcmp(cmd, BuiltinCommands[0]) == 0) {
 		ShowHistory();
 		return 0;
