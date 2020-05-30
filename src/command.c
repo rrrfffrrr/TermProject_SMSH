@@ -133,5 +133,11 @@ bool CheckCommandSyntax(char* command) {
 }
 
 void RunCommand(char* command) {
-	
+	const char* const cbegin = command;
+	const char* const cend = &command[strlen(command)+1];
+	enum CommandFS fsm = CFS_Ready;
+
+	for(char* cursor = (char*)cbegin;cursor != cend; ++cursor) {
+		printf("%c", *cursor);
+	}
 }
