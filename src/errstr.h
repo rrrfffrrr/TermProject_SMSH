@@ -4,6 +4,8 @@
 #ifndef __SMSC_ERROR_H
 #define __SMSC_ERROR_H
 
+#define ERR_MAX_LEN 4096
+
 // error string
 #define ERR_UNEXPECTED "Critical: Unexpected syntax near `%c'\n"
 #define ERRFORK	"bash: Cannot fork new process.\n"

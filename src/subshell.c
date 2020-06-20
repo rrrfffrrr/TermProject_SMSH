@@ -13,7 +13,7 @@
 pid_t RunSubshellInstance(char* command, bool isBackground, int* pipeReceiver, int* pipeSender) {
 	pid_t pid = fork();
 	if (pid < 0) {
-		printf(ERRFORK);
+		write(1, ERRFORK, strlen(ERRFORK));
 		return -1;
 	} else if (pid == 0) {
 		if (pipeReceiver != NULL)

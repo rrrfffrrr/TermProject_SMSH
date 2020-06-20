@@ -86,8 +86,10 @@ void AddHistory(char* cmd) {
 }
 
 void ShowHistory() {
+	char temp[ERR_MAX_LEN];
 	for(int i = 0; i < CurrentCommandCount; ++i) {
-		printf("  %d  %s\n", i + 1, Commands[i]);
+		snprintf(temp, ERR_MAX_LEN, "  %d  %s\n", i + 1, Commands[i]);
+		write(1, temp, strlen(temp));
 	}
 }
 

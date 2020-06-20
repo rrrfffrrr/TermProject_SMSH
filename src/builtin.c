@@ -35,6 +35,7 @@ bool IsBuiltinCommand(char* command) {
 
 // hardcoded cause there's no hash map.
 ssize_t RunBuiltinCommand(char** argv) {
+	char err[ERR_MAX_LEN];
 	if (strcmp(argv[0], BuiltinCommands[0]) == 0) {
 		ShowHistory();
 		return 0;
@@ -42,10 +43,12 @@ ssize_t RunBuiltinCommand(char** argv) {
 		if (chdir(argv[1]) == -1) {
 			switch(errno) {
 			case ENOENT:
-				printf(ERRCMD_CD_NODIR, argv[1]);
+				snprintf(err, ERR_MAX_LEN, ERRCMD_CD_NODIR, argv[1]);
+				write(1, err, strlen(err));
 			break;
 			default:
-				printf(ERRCMD_CD_DEFAULT, argv[1]);
+				snprintf(err, ERR_MAX_LEN, ERRCMD_CD_DEFAULT, argv[1]);
+				write(1, err, strlen(err));
 			break;
 			}
 		}
@@ -54,7 +57,8 @@ ssize_t RunBuiltinCommand(char** argv) {
 		char* path = getcwd(NULL, 0);
 		if (path == NULL)
 			return -1;
-		printf("%s\n", path);
+		snprintf(err, ERR_MAX_LEN, "%s\n", path);
+		write(1, err, strlen(err));
 		free(path);
 		return 0;
 	} else if (strcmp(argv[0], BuiltinCommands[3]) == 0) {

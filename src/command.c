@@ -11,6 +11,13 @@
 #include <string.h>
 #include <unistd.h>
 
+struct CommandData {
+	char** args;
+	char* input;
+	char* output;
+	bool appendOutput;
+}
+
 enum CheckCommandFS {
 	CCFS_Ready,
 	CCFS_Operator,
@@ -206,8 +213,10 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 		memcpy(cmd, singleStart, len);
 		cmd[len] = '\0';
 
+		struct CommandData* cData = ParseCommand(cmd);
+
 		pipe(pfd);
-		if (IsBuiltinCommand(cmd) || (cmd[0] == 'c' && cmd[1] == 'd' && (cmd[2] == ' ' || cmd[2] == '	'))) { // hardcoding for just test
+		if (IsBuiltinCommand(cmd)) {
 			RunBuiltinCommand(cmd);
 		} else {
 			switch(pid = fork()) {
@@ -230,6 +239,7 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 				exit(0);
 				break;
 			default:
+				FreeCommandData(cData);
 				break;
 			}
 		}
@@ -247,64 +257,81 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 	}
 }
 
-typedef struct _SCommandFrag {
-	char* cmd;
-	size_t size;
-	struct _SCommandFrag* next;
-} CFrag;
-
-CFrag* SAllocCmdFrag(char* frag) {
-	CFrag* node = (CFrag*)malloc(sizeof(CFrag));
-	size_t ln = strlen(frag);
-	node->size = ln + 1;
-	node->next = NULL;
-	node->cmd = (char*)malloc(sizeof(char) * (node->size));
-	memcpy(node->cmd, frag, ln);
-	node->cmd[ln+1] = '\0';
-	return node;
-}
-size_t SAddCmdFrag(CFrag **top, char* frag) {
-	if (*top == NULL) {
-		*top = SAllocCmdFrag(frag);
-		return 1;
-	}
-	CFrag *t = *top;
-	while(t->next != NULL) {
-		t = t->next;
-	}
-
-}
-void SClearCmdFrag(CFrag **top) {
-	CFrag *next, *t = *top;
-	while(t != NULL) {
-		next = t->next;
-
-		free(t->cmd);
-		free(t);
-
-		t = next;
-	}
-	*top = NULL;
-}
-char** SCmdFragToArray(CFrag * top, size_t size) {
-	char** list = (char**)malloc(sizeof(char*)*size);
-	if (list == NULL)
-		return NULL;
-	int i = 0;
-	while(top != NULL) {
-		list[i++] = top->cmd;
-		top = top->next;
-		if (i == size)
-			break;
-	}
-	return list;
-}
-
-void RunSingleCommand(char* command) {
+void RunSingleCommand(char** args) {
 	if (command == NULL || strlen(command) == 0)
 		return;
-	// redirect in out
-//	run exec
+	execvp(args[0], args);
+	char err[ERR_MAX_LEN];
+	snprintf(err, ERR_MAX_LEN, ERRCMD_NOTFOUND, "command here");
+	write(1, err, strlen(err));
+}
 
-	printf(ERRCMD_NOTFOUND, "command here");
+/// Parsing and return structured data
+struct DataNode {
+	char* data;
+	struct DataNode* next;
+}
+struct DataNode* CreateDataNode(char* data) {
+	struct DataNode* node = (struct DataNode*)malloc(sizeof(struct DataNode));
+	node->data = (char*)malloc(sizeof(char) * (strlen(data) + 1));
+	memcpy(node->data, data, strlen(data) + 1)
+	node->next = NULL;
+	return node;
+}
+void RemoveDataNode(struct DataNode** node) {
+	struct DataNode* n = *node, *temp;
+	*node = NULL;
+	while(n != NULL) {
+		if (n->data != NULL)
+			free(n->data);
+		temp = n;
+		n = n->next;
+		free(temp);
+	}
+}
+char** BuildDataNodeString(struct DataNode* list) {
+	char** ret;
+	size_t num = 0;
+	for(struct DataNode* n = list;n != NULL; n = n->next) {
+		++num;
+	}
+
+	ret = (char**)malloc(sizeof(char*) * (num + 1));
+
+	for(struct DataNode* n = list, int i = 0;n != NULL; n = n->next, ++i) {
+		size_t sl = strlen(n->data);
+		ret[i] = (char*)malloc(sizeof(char) * (sl + 1));
+		memcpy(ret[i], n->data, sl);
+		ret[i][sl] = '\0';
+	}	
+
+	ret[num] = NULL;
+	return ret;
+}
+
+// methods
+struct CommandData* ParseCommand(char* command) {
+	struct CommandData* data = (struct CommandData*)malloc(sizeof(struct CommandData));
+	if (data == NULL)
+		return NULL;
+	data->args = NULL;
+	data->input = NULL;
+	data->output = NULL;
+	data->appendOutput = false;
+
+	struct DataNode* clist = CreateDataNode(NULL);
+
+	data->args = BuildDataNodeString(clist->next);
+	RemoveDataNode(&clist);
+	return data;
+}
+
+void FreeCommandData(struct CommandData* data) {
+	if (data == NULL) return;
+	char* data;
+	for(int i = 0; data[i] != NULL; ++i)
+		free(data[i]);
+	free(data[i]);
+	if (input != NULL) free(input);
+	if (output != NULL) free(output);
 }
