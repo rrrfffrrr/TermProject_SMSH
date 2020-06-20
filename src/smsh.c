@@ -11,7 +11,6 @@
 #include "history.h"
 #include "errstr.h"
 #include "command.h"
-#include "subshell.h"
 
 // string
 const char PrefixFormat[256] = "\033[1;32m%s\033[0m:\033[1;94m%s\033[0m$ ";
@@ -45,8 +44,7 @@ int main() {
 			goto ENDOFLOOP;
 		
 		if (CheckCommandSyntax(command)) {
-			pid_t pid = RunSubshellInstance(command, false, NULL, NULL, 0);
-			waitpid(pid, NULL, 0);
+			RunCommand(command);
 		}
 		
 ENDOFLOOP:;

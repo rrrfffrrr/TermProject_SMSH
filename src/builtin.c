@@ -19,10 +19,7 @@ static char BuiltinCommands[][SIZEOFCOMMAND] = {
 	"cd",
 	"pwd",
 	"exit",
-	"set +o noclobber",
-	"set -o noclobber",
-	"set +C",
-	"set -C",
+	"set",
 };
 
 bool IsBuiltinCommand(char* command) {
@@ -37,35 +34,42 @@ bool IsBuiltinCommand(char* command) {
 }
 
 // hardcoded cause there's no hash map.
-ssize_t RunBuiltinCommand(char* cmd, char** argv) {
-	if (strcmp(cmd, BuiltinCommands[0]) == 0) {
+ssize_t RunBuiltinCommand(char** argv) {
+	if (strcmp(argv[0], BuiltinCommands[0]) == 0) {
 		ShowHistory();
 		return 0;
-	} else if (strcmp(cmd, BuiltinCommands[1]) == 0) {
-		if (chdir(argv[0]) == -1) {
-			printf(ERRCMD_CD_NODIR, argv[0]);
+	} else if (strcmp(argv[0], BuiltinCommands[1]) == 0) {
+		if (chdir(argv[1]) == -1) {
+			switch(errno) {
+			case ENOENT:
+				printf(ERRCMD_CD_NODIR, argv[1]);
+			break;
+			default:
+				printf(ERRCMD_CD_DEFAULT, argv[1]);
+			break;
+			}
 		}
 		return 0;
-	} else if (strcmp(cmd, BuiltinCommands[2]) == 0) {
+	} else if (strcmp(argv[0], BuiltinCommands[2]) == 0) {
 		char* path = getcwd(NULL, 0);
 		if (path == NULL)
 			return -1;
 		printf("%s\n", path);
 		free(path);
 		return 0;
-	} else if (strcmp(cmd, BuiltinCommands[3]) == 0) {
+	} else if (strcmp(argv[0], BuiltinCommands[3]) == 0) {
 		exit(0);
-	} else if (strcmp(cmd, BuiltinCommands[4]) == 0) {
-		SetNoclobber(true);
-		return 0;
-	} else if (strcmp(cmd, BuiltinCommands[5]) == 0) {
-		SetNoclobber(false);
-		return 0;
-	} else if (strcmp(cmd, BuiltinCommands[6]) == 0) {
-		SetNoclobber(true);
-		return 0;
-	} else if (strcmp(cmd, BuiltinCommands[7]) == 0) {
-		SetNoclobber(false);
+	} else if (strcmp(argv[0], BuiltinCommands[4]) == 0) {
+		if (strcmp(argv[1], "+C") == 0)
+			SetNoclobber(true);
+		else if (strcmp(argv[1], "-C") == 0)
+			SetNoclobber(false);
+		else if (strcmp(argv[1], "+o"))
+			if (strcmp(argv[2], "noclobber") == 0)
+				SetNoclobber(true);
+		else if (strcmp(argv[1], "-o"))
+			if (strcmp(argv[2], "noclobber") == 0)
+				SetNoclobber(false);
 		return 0;
 	}
 	return -1;

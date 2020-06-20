@@ -7,19 +7,6 @@ void SetNoclobber(bool enable) {
 	NoClobber = enable;
 }
 
-void PipeReceiver(int* pipe) {
-	close(stdin);
-	dup(pipe[0]);
-	close(pipe[0]);
-	close(pipe[1]);
-}
-void PipeSender(int* pipe) {
-	close(stdout);
-	dup(pipe[1]);
-	close(pipe[0]);
-	close(pipe[1]);
-}
-
 bool RedirectInput(char* file) {
 	int fd = open(input, O_RDONLY);
 	if (fd == -1) {

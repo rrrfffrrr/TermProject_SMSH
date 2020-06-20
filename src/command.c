@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 enum CheckCommandFS {
 	CCFS_Ready,
@@ -138,86 +139,172 @@ void RunCommand(char* command) {
 	const char* const cbegin = command;
 	const char* const cend = &command[strlen(command)+1];
 
-	char singleCmd[MAX_COMMAND_LENGTH];
 	char* cmdStart = (char*)cbegin;
-	size_t length;
+	char* cmdEnd;
+	bool isBackground = false;
+	bool stop = false;
 
-	int fd[2][2];
-	int nextPipe = 0;
-	int *pipeS, *pipeR;
+	for(char* cursor = cmdStart;cursor != cend && stop == false; ++cursor) {
+		isBackground = false;
+		// TRIM
+		while(*cursor == ' ' || *cursor == '	')
+			++cursor;
 
-	for(char* cursor = cmdStart;cursor != cend; ++cursor) {
-		switch(*cursor) {
-			case '|':
-				length = (size_t)(cursor - cmdStart);
-				if (length <= 0) {
-					printf(ERRCMD_SYNTAX, *cursor);
-					return;
-				}
-				memcpy(singleCmd, cmdStart, length);
-				singleCmd[length] = '\0';
-
-				pipeS = fd[nextPipe];
-				nextPipe = (nextPipe + 1) % 2;
-				pipe(pipeS);
-				RunSingleCommand(singleCmd, false, pipeR, pipeS);
-				if (pipeR != NULL) {
-					close(pipeR[0]);
-					close(pipeR[1]);
-				}
-				pipeR = pipeS;
-			break;
-			case '&':
-				length = (size_t)(cursor - cmdStart);
-				if (length <= 0) {
-					printf(ERRCMD_SYNTAX, *cursor);
-					return;
-				}
-				memcpy(singleCmd, cmdStart, length);
-				singleCmd[length] = '\0';
-
-				RunSingleCommand(singleCmd, true, pipeR, NULL);
-				if (pipeR != NULL) {
-					close(pipeR[0]);
-					close(pipeR[1]);
-					pipeR = NULL;
-				}
-			break;
-			case '\0': case ';':
-				length = (size_t)(cursor - cmdStart);
-				if (length > 0) {
-					memcpy(singleCmd, cmdStart, length);
-					singleCmd[length] = '\0';
-					RunSingleCommand(singleCmd, false, pipeR, NULL);
-					if (pipeR != NULL) {
-						close(pipeR[0]);
-						close(pipeR[1]);
-						pipeR = NULL;
-					}
-				} else if (pipeR == NULL) {
-					printf(ERRCMD_SYNTAX, *cursor);
-					return;
-				}
-			break;
-			default: break;
+		// FIND LAST
+		cmdStart = cursor;
+		while(true) {
+			if (*cursor == ';')
+				break;
+			if (cursor == cend) {
+				stop = true;
+				break;
+			}
+			if (*cursor != '&') {
+				isBackground = true;
+				break;
+			}
+			if (*cursor != ' ' && *cursor != '	')
+				cmdEnd = cursor;
+			++cursor;
 		}
+
+		ParsePipeCommand(cmdStart, cmdEnd, isBackground);
+		++cursor;
 	}
 }
 
-void RunSingleCommand(char* command, bool isBackground, int* pipeReceiver, int* pipeSender) {
-	pid_t pid = fork();
-	if (pid < 0) {
-		printf(ERRFORK);
-		return;
-	} else if (pid == 0) {
-		if (pipeReceiver != NULL)
-			PipeReceiver(pipeReceiver)
-		if (pipeSender != NULL)
-			PipeSender(pipeSender);
+void ParsePipeCommand(const char* start, const char* end, bool background) {
+	char* cursor = start;
+	char* singleStart = start;
+	char* singleEnd = start;
+	bool isFirst = true;
+	bool isLast = false;
 
-		
-	} else {
-		if (isBackground == false)
-			waitpid(pid);
+	char cmd[MAX_COMMAND_LENGTH];
+	pid_t pid;
+
+	int pfd[2];
+	int lastOut = STDOUT_FILENO;
+
+	while(isLast != true && cursor != end) {
+		while(*cursor == ' ' || *cursor == '	')
+			++cursor;
+		singleStart = cursor;
+		while(true) {
+			if (*cursor == '|')
+				break
+			if (cursor == end) {
+				isLast = true;
+				break
+			}
+			if (*cursor != ' ' && *cursor != '	')
+				singleEnd = cursor;
+			++cursor;
+		}
+
+		size_t len = singleEnd - singleStart;
+		memcpy(cmd, singleStart, len);
+		cmd[len] = '\0';
+
+		pipe(pfd);
+		if (IsBuiltinCommand(cmd) || (cmd[0] == 'c' && cmd[1] == 'd' && (cmd[2] == ' ' || cmd[2] == '	'))) { // hardcoding for just test
+			RunBuiltinCommand(cmd);
+		} else {
+			switch(pid = fork()) {
+			case -1:
+				printf(ERRFORK);
+				exit(1);
+				break;
+			case 0:
+				if (isFirst != true) {
+					close(STDIN_FILENO);
+					dup(pfd[0]);
+				}
+				if (isLast != true) {
+					close(STDOUT_FILENO);
+					dup(pfd[1]);
+				}
+				close(pfd[0]);
+				close(pfd[1]);
+				RunSingleCommand(cmd);
+				exit(0);
+				break;
+			default:
+				break;
+			}
+		}
+
+		close(pfd[0]);
+		if (isFirst != true)
+			close(lastOut);
+		lastOut = pfd[1];
+		if (isLast) {
+			close(lastOut);
+			if (isBackground)
+				wait(pid);
+		}
+		isFirst = false;
 	}
+}
+
+typedef struct _SCommandFrag {
+	char* cmd;
+	size_t size;
+	struct _SCommandFrag* next;
+} CFrag;
+
+CFrag* SAllocCmdFrag(char* frag) {
+	CFrag* node = (CFrag*)malloc(sizeof(CFrag));
+	size_t ln = strlen(frag);
+	node->size = ln + 1;
+	node->next = NULL;
+	node->cmd = (char*)malloc(sizeof(char) * (node->size));
+	memcpy(node->cmd, frag, ln);
+	node->cmd[ln+1] = '\0';
+	return node;
+}
+size_t SAddCmdFrag(CFrag **top, char* frag) {
+	if (*top == NULL) {
+		*top = SAllocCmdFrag(frag);
+		return 1;
+	}
+	CFrag *t = *top;
+	while(t->next != NULL) {
+		t = t->next;
+	}
+
+}
+void SClearCmdFrag(CFrag **top) {
+	CFrag *next, *t = *top;
+	while(t != NULL) {
+		next = t->next;
+
+		free(t->cmd);
+		free(t);
+
+		t = next;
+	}
+	*top = NULL;
+}
+char** SCmdFragToArray(CFrag * top, size_t size) {
+	char** list = (char**)malloc(sizeof(char*)*size);
+	if (list == NULL)
+		return NULL;
+	int i = 0;
+	while(top != NULL) {
+		list[i++] = top->cmd;
+		top = top->next;
+		if (i == size)
+			break;
+	}
+	return list;
+}
+
+void RunSingleCommand(char* command) {
+	if (command == NULL || strlen(command) == 0)
+		return;
+	// redirect in out
+//	run exec
+
+	printf(ERRCMD_NOTFOUND, "command here");
 }

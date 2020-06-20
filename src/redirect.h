@@ -10,9 +10,6 @@
 
 void SetNoclobber(bool);
 
-void PipeReceiver(int* pipe);
-void PipeSender(int* pipe);
-
 bool RedirectInput(char*);
 bool RedirectOutput(char*, int);
 
