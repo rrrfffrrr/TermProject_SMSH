@@ -9,6 +9,7 @@
 #define RDO_Append			0x02
 
 void SetNoclobber(bool);
+bool GetNoclobber();
 
 bool RedirectInput(char*);
 bool RedirectOutput(char*, int);

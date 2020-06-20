@@ -1,18 +1,22 @@
 #include "redirect.h"
 #include <unistd.h>
+#include <fcntl.h>
 
 bool NoClobber = false;
 
 void SetNoclobber(bool enable) {
 	NoClobber = enable;
 }
+bool GetNoclobber() {
+	return NoClobber;
+}
 
 bool RedirectInput(char* file) {
-	int fd = open(input, O_RDONLY);
+	int fd = open(file, O_RDONLY);
 	if (fd == -1) {
 		return false;
 	}
-	close(stdin);
+	close(0);
 	dup(fd);
 	close(fd);
 	return true;
@@ -27,11 +31,11 @@ bool RedirectOutput(char* file, int mode) {
 	else if (NoClobber == false)
 		flags |= O_TRUNC;
 
-	int fd = open(input, flags, 0666);
+	int fd = open(file, flags, 0666);
 	if (fd == -1) {
 		return false;
 	}
-	close(stdout);
+	close(1);
 	dup(fd);
 	close(fd);
 	return true;

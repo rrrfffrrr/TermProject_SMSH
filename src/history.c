@@ -2,8 +2,10 @@
 * KANG CHAN YEONG(rrrfffrrr@naver.com)
 */
 #include "history.h"
+#include "errstr.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 static char Commands[MAX_HISTORY_COUNT][MAX_COMMAND_LENGTH];
 static size_t CurrentCommandCount = 0;
@@ -21,7 +23,6 @@ bool ParseCommandToAddHistory(char* string, size_t size, size_t* error) {
 	char buffer[MAX_COMMAND_LENGTH];
 	char* cursor = cbegin;
 	char* start = NULL;
-	bool skipNext = false;
 	bool isEvent = false;
 	size_t hid = 0;
 	enum ParserFS fsm = PFS_Ready;

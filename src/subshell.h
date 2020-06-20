@@ -6,6 +6,6 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
-pid_t RunSubshellInstance(char*, bool, char*, char*, bool);
+pid_t RunSubshellInstance(char*, bool, int*, int*);
 
 #endif

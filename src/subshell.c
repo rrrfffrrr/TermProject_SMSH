@@ -9,6 +9,8 @@
 #include "subshell.h"
 #include "command.h"
 #include "redirect.h"
+#include <stdlib.h>
+#include <sys/wait.h>
 
 pid_t RunSubshellInstance(char* command, bool isBackground, int* pipeReceiver, int* pipeSender) {
 	pid_t pid = fork();
@@ -16,16 +18,12 @@ pid_t RunSubshellInstance(char* command, bool isBackground, int* pipeReceiver, i
 		write(1, ERRFORK, strlen(ERRFORK));
 		return -1;
 	} else if (pid == 0) {
-		if (pipeReceiver != NULL)
-			PipeReceiver(pipeReceiver);
-		if (pipeSender != NULL)
-			PipeSender(pipeSender);
 
 		RunCommand(command);
 		exit(0);
 	} else {
 		if (isBackground == false)
-			waitpid(pid);
+			waitpid(pid, 0, 0);
 		return pid;
 	}
 }
