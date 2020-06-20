@@ -158,7 +158,7 @@ void RunCommand(char* command) {
 	const char* const cend = &command[strlen(command)+1];
 
 	char* cmdStart = (char*)cbegin;
-	char* cmdEnd;
+	char* cmdEnd = cmdStart;
 	bool isBackground = false;
 	bool stop = false;
 
@@ -177,17 +177,18 @@ void RunCommand(char* command) {
 				stop = true;
 				break;
 			}
-			if (*cursor != '&') {
+			if (*cursor == '&') {
 				isBackground = true;
 				break;
 			}
 			if (*cursor != ' ' && *cursor != '	')
-				cmdEnd = cursor;
+				cmdEnd = cursor + 1;
 			++cursor;
 		}
 
 		ParsePipeCommand(cmdStart, cmdEnd, isBackground);
-		++cursor;
+		if (cursor == cend)
+			break;
 	}
 }
 
@@ -205,8 +206,9 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 	int lastOut = STDOUT_FILENO;
 
 	while(isLast != true && cursor != end) {
-		while(*cursor == ' ' || *cursor == '	')
+		while(*cursor == ' ' || *cursor == '	') {
 			++cursor;
+		}
 		singleStart = cursor;
 		while(true) {
 			if (*cursor == '|')
@@ -216,7 +218,7 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 				break;
 			}
 			if (*cursor != ' ' && *cursor != '	')
-				singleEnd = cursor;
+				singleEnd = cursor + 1;
 			++cursor;
 		}
 
@@ -283,10 +285,14 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 				}
 				close(pfd[0]);
 				close(pfd[1]);
+
 				RunSingleCommand(cData->args);
+
 				exit(0);
 				break;
 			default:
+				if (isLast && background == false)
+					waitpid(pid, 0, 0);
 				FreeCommandData(cData);
 				break;
 			}
@@ -298,8 +304,6 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 		lastOut = pfd[1];
 		if (isLast) {
 			close(lastOut);
-			if (background)
-				waitpid(pid, 0, 0);
 		}
 		isFirst = false;
 	}
@@ -310,7 +314,7 @@ void RunSingleCommand(char** args) {
 		return;
 	execvp(args[0], args);
 	char err[ERR_MAX_LEN];
-	snprintf(err, ERR_MAX_LEN, ERRCMD_NOTFOUND, "command here");
+	snprintf(err, ERR_MAX_LEN, ERRCMD_NOTFOUND, args[0]);
 	write(1, err, strlen(err));
 }
 
@@ -381,7 +385,7 @@ struct CommandData* ParseCommand(char* command) {
 	char* start = command;
 	char* cursor = command;
 	char* end = (char*)((size_t)command + strlen(command));
-	for(;start != end; ++cursor) {
+	for(;cursor != end; ++cursor) {
 		switch(*cursor) {
 			case ' ':
 			case '	':
@@ -395,8 +399,6 @@ struct CommandData* ParseCommand(char* command) {
 					tail->next = CreateDataNode(temp);
 					tail->next->prev = tail;
 					tail = tail->next;
-					if (&cursor[1] == end)
-						--cursor;
 				}
 				break;
 		}
