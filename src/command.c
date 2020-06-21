@@ -236,7 +236,7 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 			if (isFirst != true) {
 				iOrigin = dup(STDIN_FILENO);
 				close(STDIN_FILENO);
-				dup(pfd[0]);
+				dup(lastOut);
 			}
 			if (isLast != true) {
 				oOrigin = dup(STDOUT_FILENO);
@@ -283,7 +283,7 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 			case 0:
 				if (isFirst != true) {
 					close(STDIN_FILENO);
-					dup(pfd[0]);
+					dup(lastOut);
 				}
 				if (isLast != true) {
 					close(STDOUT_FILENO);
@@ -306,7 +306,7 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 					}
 					open(cData->output, flag, 0666);
 				}
-				
+
 				RunSingleCommand(cData->args);
 				exit(0);
 				break;
@@ -319,10 +319,10 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 			}
 		}
 
-		close(pfd[0]);
+		close(pfd[1]);
 		if (isFirst != true)
 			close(lastOut);
-		lastOut = pfd[1];
+		lastOut = pfd[0];
 		if (isLast) {
 			close(lastOut);
 		}
