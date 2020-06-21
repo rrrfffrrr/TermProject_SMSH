@@ -69,11 +69,11 @@ ssize_t RunBuiltinCommand(char** argv) {
 			SetNoclobber(true);
 		else if (strcmp(argv[1], "-C") == 0)
 			SetNoclobber(false);
-		else if (strcmp(argv[1], "+o")) {
+		else if (strcmp(argv[1], "+o") == 0) {
 			if (strcmp(argv[2], "noclobber") == 0) {
 				SetNoclobber(true);
 			}
-		} else if (strcmp(argv[1], "-o")) {
+		} else if (strcmp(argv[1], "-o") == 0) {
 			if (strcmp(argv[2], "noclobber") == 0) {
 				SetNoclobber(false);
 			}

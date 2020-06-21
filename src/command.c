@@ -211,8 +211,10 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 		}
 		singleStart = cursor;
 		while(true) {
-			if (*cursor == '|')
+			if (*cursor == '|' && *(cursor - 1) != '>') {
+				++cursor;
 				break;
+			}
 			if (cursor == end) {
 				isLast = true;
 				break;
@@ -253,7 +255,10 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 					oOrigin = dup(STDOUT_FILENO);
 				}
 				close(STDOUT_FILENO);
-				open(cData->output, O_CREAT|O_WRONLY|(cData->appendOutput == true?O_APPEND:0)|((cData->ignoreClobber == true?O_TRUNC:(GetNoclobber() == true?0:O_TRUNC))), 0666);
+				int flag = O_WRONLY;
+				flag |= (cData->appendOutput) ? O_APPEND : O_CREAT;
+				flag |= (cData->ignoreClobber) ? O_TRUNC : (GetNoclobber()?0:O_TRUNC);
+				open(cData->output, flag, 0666);
 			}
 
 			RunBuiltinCommand(cData->args);
@@ -269,6 +274,7 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 				close(oOrigin);
 			}
 		} else {
+			char err[ERR_MAX_LEN];
 			switch(pid = fork()) {
 			case -1:
 				printf(ERRFORK);
@@ -285,14 +291,29 @@ void ParsePipeCommand(const char* start, const char* end, bool background) {
 				}
 				close(pfd[0]);
 				close(pfd[1]);
-
+				if (cData->input != NULL) {
+					close(STDIN_FILENO);
+					open(cData->input, O_RDONLY);
+				}
+				if (cData->output != NULL) {
+					close(STDOUT_FILENO);
+					int flag = O_CREAT|O_WRONLY;
+					flag |= (cData->appendOutput) ? O_APPEND : O_TRUNC;
+					if (GetNoclobber() == false && cData->ignoreClobber == false && cData->appendOutput == false) {
+						snprintf(err, ERR_MAX_LEN, ERRCMD_NOCLOBBER, cData->output);
+						write(2, err, strlen(err));
+						exit(0);
+					}
+					open(cData->output, flag, 0666);
+				}
+				
 				RunSingleCommand(cData->args);
-
 				exit(0);
 				break;
 			default:
-				if (isLast && background == false)
+				if (isLast == false || background == false) {
 					waitpid(pid, 0, 0);
+				}
 				FreeCommandData(cData);
 				break;
 			}
@@ -315,7 +336,7 @@ void RunSingleCommand(char** args) {
 	execvp(args[0], args);
 	char err[ERR_MAX_LEN];
 	snprintf(err, ERR_MAX_LEN, ERRCMD_NOTFOUND, args[0]);
-	write(1, err, strlen(err));
+	write(2, err, strlen(err));
 }
 
 /// Parsing and return structured data
@@ -391,8 +412,34 @@ struct CommandData* ParseCommand(char* command) {
 			case '	':
 				start = cursor + 1;
 				break;
+			case '>':
+				if (cursor[1] == '|') {
+					start = cursor + 2;
+					tail->next = CreateDataNode(">|");
+					tail->next->prev = tail;
+					tail = tail->next;
+					++cursor;
+				} else if (cursor[1] == '>') {
+					start = cursor + 2;
+					tail->next = CreateDataNode(">>");
+					tail->next->prev = tail;
+					tail = tail->next;
+					++cursor;
+				} else {
+					start = cursor + 1;
+					tail->next = CreateDataNode(">");
+					tail->next->prev = tail;
+					tail = tail->next;
+				}
+			break;
+			case '<':
+				tail->next = CreateDataNode("<");
+				tail->next->prev = tail;
+				tail = tail->next;
+				start = cursor + 1;
+			break;
 			default:
-				if (cursor[1] == ' ' || cursor[1] == '	' || &cursor[1] == end) {
+				if (cursor[1] == ' ' || cursor[1] == '	' || &cursor[1] == end || cursor[1] == '>' || cursor[1] == '<') {
 					size_t ll = cursor - start + 1;
 					memcpy(temp, start, ll);
 					temp[ll] = '\0';
@@ -406,72 +453,68 @@ struct CommandData* ParseCommand(char* command) {
 
 	size_t l;
 	struct DataNode* dtemp;
-	for(tail = clist->next; tail != NULL; tail = tail->next) {
+	for(tail = clist->next; tail != NULL;) {
 		switch(tail->data[0]) {
 			case '>':
 				data->appendOutput = false;
 				data->ignoreClobber = false;
-				bool isTwo = false;
 				if (tail->data[1] == '|') { // check >|
-					data->appendOutput = true;
-					isTwo = true;
-				} else if (tail->data[1] == '>') { // check >>
 					data->ignoreClobber = true;
-					isTwo = true;
+				} else if (tail->data[1] == '>') { // check >>
+					data->appendOutput = true;
 				}
 				if (data->output != NULL)
 					free(data->output);
 
-				if (tail->data[1 + isTwo] != '\0') {
-					l = strlen(tail->data) - 1 - isTwo;
-					data->output = (char*)malloc(sizeof(char) * (l + 1));
-					memcpy(data->output, tail->data + 1 + isTwo, l);
-					data->output[l] = '\0';
-					tail->prev->next = tail->next;
+				dtemp = tail;
+				tail->prev->next = tail->next;
+				tail->next->prev = tail->prev;
+				tail = tail->next;
+				dtemp->next = NULL;
+				RemoveDataNode(&dtemp);
+
+				dtemp = tail;
+				tail->prev->next = tail->next;
+				if (tail->next != NULL)
 					tail->next->prev = tail->prev;
-					tail->next = NULL;
-					dtemp = tail;
-					tail = tail->prev;
-					RemoveDataNode(&dtemp);
-				} else {
-					l = strlen(tail->next->data);
-					data->output = (char*)malloc(sizeof(char) * (l + 1));
-					memcpy(data->output, tail->next->data, l);
-					data->output[l] = '\0';
-					tail->prev->next = tail->next->next;
-					tail->next->next->prev = tail->prev;
-					dtemp = tail;
-					tail = tail->prev;
-					tail->next->next = NULL;
-					RemoveDataNode(&dtemp);
-				}
+
+				l = strlen(tail->data);
+				data->output = (char*)malloc(sizeof(char) * (l + 1));
+				memcpy(data->output, tail->data, l);
+				data->output[l] = '\0';
+
+				tail = tail->next;
+				dtemp->next = NULL;
+				RemoveDataNode(&dtemp);
+			break;
 			case '<':
 				if (data->input != NULL)
 					free(data->input);
 
-				if (tail->data[1] != '\0') {
-					l = strlen(tail->data) - 1;
-					data->input = (char*)malloc(sizeof(char) * (l + 1));
-					memcpy(data->input, tail->data + 1, l);
-					data->input[l] = '\0';
-					dtemp = tail;
-					tail->prev->next = tail->next;
+				dtemp = tail;
+				tail->prev->next = tail->next;
+				tail->next->prev = tail->prev;
+				tail = tail->next;
+				dtemp->next = NULL;
+				RemoveDataNode(&dtemp);
+
+				dtemp = tail;
+				tail->prev->next = tail->next;
+				if (tail->next != NULL)
 					tail->next->prev = tail->prev;
-					tail->next = NULL;
-					RemoveDataNode(&dtemp);
-				} else {
-					l = strlen(tail->next->data);
-					data->input = (char*)malloc(sizeof(char) * (l + 1));
-					memcpy(data->input, tail->next->data, l);
-					data->input[l] = '\0';
-					dtemp = tail;
-					tail->prev->next = tail->next->next;
-					tail->next->next->prev = tail->prev;
-					tail->next->next = NULL;
-					RemoveDataNode(&dtemp);
-				}
+
+				l = strlen(tail->data);
+				data->input = (char*)malloc(sizeof(char) * (l + 1));
+				memcpy(data->input, tail->data, l);
+				data->input[l] = '\0';
+
+				tail = tail->next;
+				dtemp->next = NULL;
+				RemoveDataNode(&dtemp);
+			break;
 			default:
-				break;
+				tail = tail->next;
+			break;
 		}
 	}
 

@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-bool NoClobber = false;
+bool NoClobber = true;
 
 void SetNoclobber(bool enable) {
 	NoClobber = enable;

@@ -15,6 +15,7 @@
 
 /// command error
 #define ERRCMD_SYNTAX "bash: syntax error near unexpected token `%c'\n"
+#define ERRCMD_NOCLOBBER "bash: %s: cannot overwrite existing file\n"
 #define ERRCMD_NOTFOUND "Command '%s' not found.\n"
 #define ERRCMD_CD_DEFAULT "bash: cd: %s: Unexpected error.\n"
 #define ERRCMD_CD_NODIR "bash: cd: %s: No such file or directory\n"

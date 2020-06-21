@@ -2,7 +2,7 @@
 # @Create 05/22/2020
 # @Last_update 05/23/2020
 CC		:= gcc
-CFLAG	:= -g -Wall
+CFLAG	:= -g -Wall -Werror
 TARGET	:= smsh
 SRCDIR	:= src
 SOURCE	:= $(wildcard $(SRCDIR)/*.c)

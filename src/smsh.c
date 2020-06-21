@@ -30,6 +30,7 @@ int main() {
 			write(STDOUT_FILENO, command, commandSize);
 			commandSize = read(STDIN_FILENO, command, MAX_COMMAND_LENGTH);
 			command[commandSize-1] = '\0'; // replace \n to \0
+			printf("C: %s\n",command);// debug
 		}
 		{ // perform history
 			size_t hid;
